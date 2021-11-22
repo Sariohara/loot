@@ -1,0 +1,32 @@
+[active]
+button = "#424242"
+window = "#212121"
+windowText = "#E0E0E0"
+light = "#303030"
+dark = "#757575"
+mid = "#595959"
+text = "#FFF"
+brightText = "#595959"
+base = "#303030"
+placeholderText = "#B3FFFFFF"
+link = "#2979FF"
+
+[inactive]
+button = "#424242"
+window = "#212121"
+windowText = "#E0E0E0"
+text = "#FFF"
+brightText = "#595959"
+base = "#303030"
+placeholderText = "#B3FFFFFF"
+link = "#2979FF"
+
+[disabled]
+button = "#424242"
+window = "#212121"
+windowText = "#4DE0E0E0"
+text = "#4DFFFFFF"
+brightText = "#4D595959"
+base = "#303030"
+placeholderText = "#4DFFFFFF"
+link = "#4D2979FF"
