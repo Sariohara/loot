@@ -35,13 +35,13 @@
 namespace loot {
 class IconFactory {
 public:
-  static QPixmap getIsActiveIcon();
-  static QPixmap getMasterFileIcon();
-  static QPixmap getLightPluginIcon();
-  static QPixmap getEmptyPluginIcon();
-  static QPixmap getLoadsArchiveIcon();
-  static QPixmap getIsCleanIcon();
-  static QPixmap getHasUserMetadataIcon();
+  static QIcon getIsActiveIcon();
+  static QIcon getMasterFileIcon();
+  static QIcon getLightPluginIcon();
+  static QIcon getEmptyPluginIcon();
+  static QIcon getLoadsArchiveIcon();
+  static QIcon getIsCleanIcon();
+  static QIcon getHasUserMetadataIcon();
 
   static QIcon getSidebarEditIcon();
   static QIcon getSidebarHasUserMetadataIcon();
@@ -64,11 +64,9 @@ public:
   static QPixmap getAboutIcon();
 
 private:
-  static std::map<std::tuple<QString, int, QRgb>, QPixmap> icons;
+  static std::map<std::tuple<QString, QRgb>, QPixmap> pixmaps;
 
-  static QPixmap getIcon(QString resourcePath,
-                         int height = 18,
-                         QColor color = QColor());
+  static QPixmap getPixmap(QString resourcePath, QColor color = QColor());
 };
 }
 

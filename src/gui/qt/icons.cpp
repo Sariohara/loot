@@ -25,8 +25,12 @@
 
 #include "gui/qt/icons.h"
 
+#include <QtGui/QFontMetrics>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QPalette>
+#include <QtGui/QScreen>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QStyle>
 
 namespace loot {
 QPixmap changeColor(QPixmap pixmap, QColor color) {
@@ -42,30 +46,30 @@ QPixmap changeColor(QPixmap pixmap, QColor color) {
   return QPixmap::fromImage(image);
 }
 
-QPixmap IconFactory::getIsActiveIcon() {
-  return getIcon(":/icons/material-icons/check_black_18dp.svg");
+QIcon IconFactory::getIsActiveIcon() {
+  return getPixmap(":/icons/material-icons/check_black_48dp.svg");
 }
 
-QPixmap IconFactory::getMasterFileIcon() {
-  return getIcon(":/icons/crown.svg");
+QIcon IconFactory::getMasterFileIcon() {
+  return getPixmap(":/icons/crown.svg");
 }
 
-QPixmap IconFactory::getLightPluginIcon() {
-  return getIcon(":/icons/material-icons/flare_black_18dp.svg");
+QIcon IconFactory::getLightPluginIcon() {
+  return getPixmap(":/icons/material-icons/flare_black_48dp.svg");
 }
 
-QPixmap IconFactory::getEmptyPluginIcon() {
-  return getIcon(":/icons/material-icons/visibility_off_black_18dp.svg");
+QIcon IconFactory::getEmptyPluginIcon() {
+  return getPixmap(":/icons/material-icons/visibility_off_black_48dp.svg");
 }
 
-QPixmap IconFactory::getLoadsArchiveIcon() {
-  return getIcon(":/icons/material-icons/attachment_black_18dp.svg");
+QIcon IconFactory::getLoadsArchiveIcon() {
+  return getPixmap(":/icons/material-icons/attachment_black_48dp.svg");
 }
 
-QPixmap IconFactory::getIsCleanIcon() { return getIcon(":/icons/droplet.svg"); }
+QIcon IconFactory::getIsCleanIcon() { return getPixmap(":/icons/droplet.svg"); }
 
-QPixmap IconFactory::getHasUserMetadataIcon() {
-  return getIcon(":/icons/material-icons/account_circle_black_18dp.svg");
+QIcon IconFactory::getHasUserMetadataIcon() {
+  return getPixmap(":/icons/material-icons/account_circle_black_48dp.svg");
 }
 
 QIcon IconFactory::getSidebarEditIcon() {
@@ -74,95 +78,95 @@ QIcon IconFactory::getSidebarEditIcon() {
                                                 QPalette::HighlightedText);
   QIcon icon;
 
-  icon.addPixmap(getIcon(path), QIcon::Normal);
-  icon.addPixmap(getIcon(path, 18, color), QIcon::Selected);
+  icon.addPixmap(getPixmap(path), QIcon::Normal);
+  icon.addPixmap(getPixmap(path, color), QIcon::Selected);
 
   return icon;
 }
 
 QIcon IconFactory::getSidebarHasUserMetadataIcon() {
-  auto path = ":/icons/material-icons/account_circle_black_18dp.svg";
+  auto path = ":/icons/material-icons/account_circle_black_48dp.svg";
   auto color = QGuiApplication::palette().color(QPalette::Active,
                                                 QPalette::HighlightedText);
   QIcon icon;
 
-  icon.addPixmap(getIcon(path), QIcon::Normal);
-  icon.addPixmap(getIcon(path, 18, color), QIcon::Selected);
+  icon.addPixmap(getPixmap(path), QIcon::Normal);
+  icon.addPixmap(getPixmap(path, color), QIcon::Selected);
 
   return icon;
 }
 
 QPixmap IconFactory::getSortIcon() {
-  return getIcon(":/icons/material-icons/sort_black_48dp.svg", 18);
+  return getPixmap(":/icons/material-icons/sort_black_48dp.svg");
 }
 
 QPixmap IconFactory::getUpdateMasterlistIcon() {
-  return getIcon(":/icons/material-icons/file_download_black_48dp.svg", 18);
+  return getPixmap(":/icons/material-icons/file_download_black_48dp.svg");
 }
 
 QPixmap IconFactory::getSettingsIcon() {
-  return getIcon(":/icons/material-icons/settings_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/settings_black_48dp.svg");
 }
 
 QPixmap IconFactory::getQuitIcon() {
-  return getIcon(":/icons/material-icons/close_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/close_black_48dp.svg");
 }
 
 QPixmap IconFactory::getOpenGroupsEditorIcon() {
-  return getIcon(":/icons/material-icons/group_work_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/group_work_black_48dp.svg");
 }
 
 QPixmap IconFactory::getSearchIcon() {
-  return getIcon(":/icons/material-icons/search_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/search_black_48dp.svg");
 }
 
 QPixmap IconFactory::getCopyLoadOrderIcon() {
-  return getIcon(":/icons/material-icons/receipt_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/receipt_black_48dp.svg");
 }
 
 QPixmap IconFactory::getCopyContentIcon() {
-  return getIcon(":/icons/material-icons/content_copy_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/content_copy_black_48dp.svg");
 }
 
 QPixmap IconFactory::getRefreshIcon() {
-  return getIcon(":/icons/material-icons/refresh_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/refresh_black_48dp.svg");
 }
 
 QPixmap IconFactory::getRedateIcon() {
-  return getIcon(":/icons/material-icons/today_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/today_black_48dp.svg");
 }
 
 QPixmap IconFactory::getDeleteIcon() {
-  return getIcon(":/icons/material-icons/delete_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/delete_black_48dp.svg");
 }
 
 QPixmap IconFactory::getEditMenuIcon() {
-  return getIcon(":/icons/material-icons/create_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/create_black_48dp.svg");
 }
 
 QPixmap IconFactory::getViewDocsIcon() {
-  return getIcon(":/icons/material-icons/book_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/book_black_48dp.svg");
 }
 
 QPixmap IconFactory::getOpenDebugLogLocationIcon() {
-  return getIcon(":/icons/material-icons/folder_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/folder_black_48dp.svg");
 }
 
 QPixmap IconFactory::getAboutIcon() {
-  return getIcon(":/icons/material-icons/help_black_48dp.svg", 48);
+  return getPixmap(":/icons/material-icons/help_black_48dp.svg");
 }
 
-std::map<std::tuple<QString, int, QRgb>, QPixmap> IconFactory::icons;
+std::map<std::tuple<QString, QRgb>, QPixmap> IconFactory::pixmaps;
 
-QPixmap IconFactory::getIcon(QString resourcePath, int height, QColor color) {
+QPixmap IconFactory::getPixmap(QString resourcePath, QColor color) {
   if (!color.isValid()) {
     color = QGuiApplication::palette().color(QPalette::Disabled,
                                              QPalette::WindowText);
   }
 
-  auto pair = std::make_tuple(resourcePath, height, color.rgba());
-  auto it = icons.find(pair);
-  if (it != icons.end()) {
+  auto key = std::make_tuple(resourcePath, color.rgba());
+  auto it = pixmaps.find(key);
+  if (it != pixmaps.end()) {
     return it->second;
   }
 
@@ -170,9 +174,7 @@ QPixmap IconFactory::getIcon(QString resourcePath, int height, QColor color) {
 
   pixmap = changeColor(pixmap, color);
 
-  pixmap = pixmap.scaledToHeight(height, Qt::SmoothTransformation);
-
-  icons.emplace(pair, pixmap);
+  pixmaps.emplace(key, pixmap);
 
   return pixmap;
 }

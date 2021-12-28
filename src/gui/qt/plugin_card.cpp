@@ -37,6 +37,8 @@
 #include "gui/qt/plugin_item_model.h"
 
 namespace loot {
+static constexpr int ATTRIBUTE_ICON_HEIGHT = 18;
+
 QString getTagsText(const std::vector<std::string> tags, bool hideTags) {
   if (hideTags) {
     return "";
@@ -78,6 +80,10 @@ std::vector<std::string> getMessageTexts(
   }
 
   return texts;
+}
+
+void setIcon(QLabel* label, QIcon icon) {
+  label->setPixmap(icon.pixmap(ATTRIBUTE_ICON_HEIGHT));
 }
 
 SizeHintCacheKey getSizeHintCacheKey(const QModelIndex& index) {
@@ -231,13 +237,13 @@ void PluginCard::setupUi() {
   messagesWidget = new MessagesWidget(this);
   messagesWidget->setVisible(false);
 
-  isActiveLabel->setPixmap(IconFactory::getIsActiveIcon());
-  masterFileLabel->setPixmap(IconFactory::getMasterFileIcon());
-  lightPluginLabel->setPixmap(IconFactory::getLightPluginIcon());
-  emptyPluginLabel->setPixmap(IconFactory::getEmptyPluginIcon());
-  loadsArchiveLabel->setPixmap(IconFactory::getLoadsArchiveIcon());
-  isCleanLabel->setPixmap(IconFactory::getIsCleanIcon());
-  hasUserEditsLabel->setPixmap(IconFactory::getHasUserMetadataIcon());
+  setIcon(isActiveLabel, IconFactory::getIsActiveIcon());
+  setIcon(masterFileLabel, IconFactory::getMasterFileIcon());
+  setIcon(lightPluginLabel, IconFactory::getLightPluginIcon());
+  setIcon(emptyPluginLabel, IconFactory::getEmptyPluginIcon());
+  setIcon(loadsArchiveLabel, IconFactory::getLoadsArchiveIcon());
+  setIcon(isCleanLabel, IconFactory::getIsCleanIcon());
+  setIcon(hasUserEditsLabel, IconFactory::getHasUserMetadataIcon());
 
   auto layout = new QVBoxLayout(this);
   layout->setSizeConstraint(QLayout::SetMinimumSize);
