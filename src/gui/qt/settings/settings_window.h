@@ -28,28 +28,15 @@
 
 #include <QtWidgets/QAbstractButton>
 #include <QtWidgets/QDialog>
-#include <QtWidgets/QProxyStyle>
+#include <QtWidgets/QListWidget>
+#include <QtWidgets/QStackedWidget>
 #include <QtWidgets/QTabWidget>
 #include <QtWidgets/QWidget>
 
 #include "gui/qt/settings/game_tab.h"
 #include "gui/qt/settings/general_tab.h"
-#include "gui/qt/settings/new_game_tab.h"
 
 namespace loot {
-class VerticalTabStyle : public QProxyStyle {
-public:
-  QSize sizeFromContents(ContentsType type,
-                         const QStyleOption *option,
-                         const QSize &size,
-                         const QWidget *widget) const;
-
-  void drawControl(ControlElement element,
-                   const QStyleOption *option,
-                   QPainter *painter,
-                   const QWidget *widget) const;
-};
-
 class SettingsWindow : public QDialog {
   Q_OBJECT
 public:
@@ -63,18 +50,22 @@ public:
 
 private:
   QAbstractButton *addGameButton;
-  QTabWidget *tabs;
+  QStackedWidget *stackedWidget;
+  QListWidget *listWidget;
   GeneralTab *generalTab;
-  NewGameTab *newGameTab;
-  VerticalTabStyle verticalTabStyle;
 
   void setupUi();
   void translateUi();
 
+  void addGameTab(const GameSettings &settings, bool isCurrentGame);
+  void removeTab(int index);
+
+  QStringList getGameFolderNames() const;
+
 private slots:
   void on_dialogButtons_accepted();
   void on_dialogButtons_rejected();
-  void on_newGameTab_accepted();
+  void on_addGameButton_clicked(bool checked);
 
   void onGameSettingsDeleted();
 };

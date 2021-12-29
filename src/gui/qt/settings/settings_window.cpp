@@ -31,68 +31,35 @@
 #include <QtWidgets/QVBoxLayout>
 
 #include "gui/qt/helpers.h"
+#include "gui/qt/settings/new_game_dialog.h"
 
 namespace loot {
-QSize VerticalTabStyle::sizeFromContents(ContentsType type,
-                                         const QStyleOption *option,
-                                         const QSize &size,
-                                         const QWidget *widget) const {
-  QSize s = QProxyStyle::sizeFromContents(type, option, size, widget);
-  if (type == QStyle::CT_TabBarTab) {
-    s.transpose();
-  }
-  return s;
-}
-
-void VerticalTabStyle::drawControl(ControlElement element,
-                                   const QStyleOption *option,
-                                   QPainter *painter,
-                                   const QWidget *widget) const {
-  if (element == CE_TabBarTabLabel) {
-    if (const QStyleOptionTab *tab =
-            qstyleoption_cast<const QStyleOptionTab *>(option)) {
-      QStyleOptionTab opt(*tab);
-      opt.shape = QTabBar::RoundedNorth;
-      QProxyStyle::drawControl(element, &opt, painter, widget);
-      return;
-    }
-  }
-  QProxyStyle::drawControl(element, option, painter, widget);
-}
-
-SettingsWindow::SettingsWindow(QWidget *parent) : QDialog(parent) { setupUi(); }
+SettingsWindow::SettingsWindow(QWidget* parent) : QDialog(parent) { setupUi(); }
 
 void SettingsWindow::initialiseInputs(
-    const LootSettings &settings,
-    const std::vector<std::string> &themes,
-    const std::optional<std::string> &currentGameFolder) {
+    const LootSettings& settings,
+    const std::vector<std::string>& themes,
+    const std::optional<std::string>& currentGameFolder) {
   generalTab->initialiseInputs(settings, themes);
 
-  while (tabs->count() > 2) {
-    auto tab = tabs->widget(1);
-    tabs->removeTab(1);
-    tab->deleteLater();
+  while (stackedWidget->count() > 1) {
+    removeTab(1);
   }
 
   for (const auto game : settings.getGameSettings()) {
     auto isCurrentGame = game.FolderName() == currentGameFolder;
-    auto gameTab = new GameTab(game, this, isCurrentGame);
-    tabs->insertTab(tabs->count() - 1, gameTab, gameTab->getName());
 
-    connect(gameTab,
-            &GameTab::gameSettingsDeleted,
-            this,
-            &SettingsWindow::onGameSettingsDeleted);
+    addGameTab(game, isCurrentGame);
   }
 }
 
-void SettingsWindow::recordInputValues(LootSettings &settings) {
+void SettingsWindow::recordInputValues(LootSettings& settings) {
   generalTab->recordInputValues(settings);
 
   std::vector<GameSettings> gameSettings;
-  // First tab is for general settings, last tab is for adding new games.
-  for (int i = 1; i < tabs->count() - 1; i += 1) {
-    auto gameTab = qobject_cast<GameTab *>(tabs->widget(i));
+  // First tab is for general settings.
+  for (int i = 1; i < stackedWidget->count(); i += 1) {
+    auto gameTab = qobject_cast<GameTab*>(stackedWidget->widget(i));
     gameSettings.push_back(gameTab->getGameSettings());
   }
 
@@ -102,28 +69,41 @@ void SettingsWindow::recordInputValues(LootSettings &settings) {
 void SettingsWindow::setupUi() {
   setWindowModality(Qt::WindowModal);
 
-  auto dialogLayout = new QVBoxLayout(this);
-  tabs = new QTabWidget(this);
-  tabs->setTabPosition(QTabWidget::West);
-  tabs->tabBar()->setStyle(&verticalTabStyle);
+  listWidget = new QListWidget(this);
+
+  addGameButton = new QPushButton(this);
+  addGameButton->setObjectName("addGameButton");
+
+  stackedWidget = new QStackedWidget(this);
+
+  generalTab = new GeneralTab(this);
+
+  listWidget->addItem(QString());
+  stackedWidget->addWidget(generalTab);
 
   auto buttonBox = new QDialogButtonBox(
       QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
   buttonBox->setObjectName("dialogButtons");
 
-  generalTab = new GeneralTab(this);
+  auto dialogLayout = new QVBoxLayout(this);
+  auto tabsLayout = new QHBoxLayout(this);
+  auto sidebarLayout = new QVBoxLayout(this);
 
-  tabs->addTab(generalTab, QString());
+  sidebarLayout->addWidget(listWidget);
+  sidebarLayout->addWidget(addGameButton);
 
-  newGameTab = new NewGameTab(this);
-  newGameTab->setObjectName("newGameTab");
+  tabsLayout->addLayout(sidebarLayout);
+  tabsLayout->addWidget(stackedWidget);
 
-  tabs->addTab(newGameTab, QString());
-
-  dialogLayout->addWidget(tabs);
+  dialogLayout->addLayout(tabsLayout);
   dialogLayout->addWidget(buttonBox);
 
   translateUi();
+
+  connect(listWidget,
+          &QListWidget::currentRowChanged,
+          stackedWidget,
+          &QStackedWidget::setCurrentIndex);
 
   QMetaObject::connectSlotsByName(this);
 }
@@ -131,8 +111,45 @@ void SettingsWindow::setupUi() {
 void SettingsWindow::translateUi() {
   setWindowTitle(translate("Settings"));
 
-  tabs->setTabText(0, translate("General"));
-  tabs->setTabText(tabs->count() - 1, translate("Add new game..."));
+  listWidget->item(0)->setText(translate("General"));
+
+  addGameButton->setText(translate("Add new game..."));
+}
+
+void SettingsWindow::addGameTab(const GameSettings& settings,
+                                bool isCurrentGame) {
+  auto gameTab = new GameTab(settings, this, isCurrentGame);
+
+  stackedWidget->addWidget(gameTab);
+  listWidget->addItem(gameTab->getName());
+
+  connect(gameTab,
+          &GameTab::gameSettingsDeleted,
+          this,
+          &SettingsWindow::onGameSettingsDeleted);
+}
+
+void SettingsWindow::removeTab(int index) {
+  auto tab = stackedWidget->widget(index);
+  stackedWidget->removeWidget(tab);
+  tab->deleteLater();
+
+  auto item = listWidget->takeItem(index);
+  delete item->listWidget();
+  delete item;
+}
+
+QStringList SettingsWindow::getGameFolderNames() const {
+  QStringList folders;
+
+  for (auto i = 1; i < stackedWidget->count() - 1; i += 1) {
+    auto gameTab = qobject_cast<GameTab*>(stackedWidget->widget(i));
+    auto otherFolder = gameTab->getLootFolder();
+
+    folders.append(otherFolder);
+  }
+
+  return folders;
 }
 
 void SettingsWindow::on_dialogButtons_accepted() {
@@ -141,7 +158,7 @@ void SettingsWindow::on_dialogButtons_accepted() {
     // tab displays is above the relevant input widget. Although
     // the change of tab happens after tooltip display, it's fast
     // enough that there's no visual weirdness.
-    tabs->setCurrentIndex(0);
+    listWidget->setCurrentRow(0);
     return;
   }
 
@@ -150,49 +167,35 @@ void SettingsWindow::on_dialogButtons_accepted() {
 
 void SettingsWindow::on_dialogButtons_rejected() { reject(); }
 
-void SettingsWindow::on_newGameTab_accepted() {
-  auto gameTypeText = newGameTab->getGameType().toStdString();
-  auto gameType = GameTab::GAME_TYPES_BY_FOLDER.at(gameTypeText);
+void SettingsWindow::on_addGameButton_clicked(bool checked) {
+  auto newGameDialog = new NewGameDialog(this, getGameFolderNames());
 
-  auto name = newGameTab->getGameName().toStdString();
-  auto lootFolder = newGameTab->getGameFolder();
+  auto result = newGameDialog->exec();
 
-  // Check that there isn't an existing game with the same folder.
-  auto lowercaseLootFolder = lootFolder.toLower();
-  for (auto i = 1; i < tabs->count() - 1; i += 1) {
-    auto gameTab = qobject_cast<GameTab *>(tabs->widget(i));
-    auto otherFolder = gameTab->getLootFolder();
-
-    if (lowercaseLootFolder == otherFolder.toLower()) {
-      newGameTab->showFolderConflictError();
-      return;
-    }
+  if (result != QDialog::DialogCode::Accepted) {
+    return;
   }
 
-  GameSettings game(gameType, lootFolder.toStdString());
+  auto gameTypeText = newGameDialog->getGameType().toStdString();
+  auto gameType = GameTab::GAME_TYPES_BY_FOLDER.at(gameTypeText);
+
+  auto name = newGameDialog->getGameName().toStdString();
+  auto lootFolder = newGameDialog->getGameFolder().toStdString();
+
+  GameSettings game(gameType, lootFolder);
   game.SetName(name);
 
-  auto gameTab = new GameTab(game, this, false);
-  auto newTabIndex =
-      tabs->insertTab(tabs->count() - 1, gameTab, gameTab->getName());
+  addGameTab(game, false);
 
-  connect(gameTab,
-          &GameTab::gameSettingsDeleted,
-          this,
-          &SettingsWindow::onGameSettingsDeleted);
-
-  tabs->setCurrentIndex(newTabIndex);
-
-  newGameTab->reset();
+  listWidget->setCurrentRow(listWidget->count() - 1);
 }
 
 void SettingsWindow::onGameSettingsDeleted() {
-  auto gameTab = qobject_cast<QWidget *>(sender());
-  auto index = tabs->indexOf(gameTab);
+  auto gameTab = qobject_cast<QWidget*>(sender());
+  auto index = stackedWidget->indexOf(gameTab);
 
   if (index > -1) {
-    tabs->removeTab(index);
-    gameTab->deleteLater();
+    removeTab(index);
   }
 }
 }

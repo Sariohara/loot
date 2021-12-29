@@ -23,30 +23,24 @@
     <https://www.gnu.org/licenses/>.
     */
 
-#ifndef LOOT_GUI_QT_SETTINGS_NEW_GAME_TAB
-#define LOOT_GUI_QT_SETTINGS_NEW_GAME_TAB
+#ifndef LOOT_GUI_QT_SETTINGS_NEW_GAME_DIALOG
+#define LOOT_GUI_QT_SETTINGS_NEW_GAME_DIALOG
 
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QDialog>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
-#include <QtWidgets/QPushButton>
 #include <QtWidgets/QWidget>
 
 namespace loot {
-class NewGameTab : public QWidget {
+class NewGameDialog : public QDialog {
   Q_OBJECT
 public:
-  NewGameTab(QWidget *parent);
+  NewGameDialog(QWidget *parent, QStringList currentGameFolders);
 
   QString getGameName() const;
   QString getGameFolder() const;
   QString getGameType() const;
-
-  void showFolderConflictError();
-  void reset();
-
-signals:
-  void accepted();
 
 private:
   QLabel *nameLabel;
@@ -55,13 +49,15 @@ private:
   QLineEdit *nameInput;
   QLineEdit *folderInput;
   QComboBox *typeComboBox;
-  QPushButton *addGameButton;
+
+  QStringList currentGameFolders;
 
   void setupUi();
   void translateUi();
 
 private slots:
-  void on_addGameButton_clicked(bool checked);
+  void on_dialogButtons_accepted();
+  void on_dialogButtons_rejected();
 };
 }
 

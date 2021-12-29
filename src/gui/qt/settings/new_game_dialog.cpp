@@ -23,7 +23,7 @@
     <https://www.gnu.org/licenses/>.
     */
 
-#include "gui/qt/settings/new_game_tab.h"
+#include "gui/qt/settings/new_game_dialog.h"
 
 #include <QtWidgets/QDialogButtonBox>
 #include <QtWidgets/QFormLayout>
@@ -34,27 +34,20 @@
 #include "gui/qt/settings/game_tab.h"
 
 namespace loot {
-NewGameTab::NewGameTab(QWidget* parent) : QWidget(parent) { setupUi(); }
-
-QString NewGameTab::getGameName() const { return nameInput->text(); }
-
-QString NewGameTab::getGameFolder() const { return folderInput->text(); }
-
-QString NewGameTab::getGameType() const { return typeComboBox->currentText(); }
-
-void NewGameTab::showFolderConflictError() {
-  QToolTip::showText(folderInput->mapToGlobal(QPoint(0, 0)),
-                     translate("A game with this folder already exists."),
-                     folderInput);
+NewGameDialog::NewGameDialog(QWidget* parent, QStringList currentGameFolders) :
+    QDialog(parent), currentGameFolders(currentGameFolders) {
+  setupUi();
 }
 
-void NewGameTab::reset() {
-  nameInput->clear();
-  typeComboBox->setCurrentIndex(0);
-  folderInput->clear();
+QString NewGameDialog::getGameName() const { return nameInput->text(); }
+
+QString NewGameDialog::getGameFolder() const { return folderInput->text(); }
+
+QString NewGameDialog::getGameType() const {
+  return typeComboBox->currentText();
 }
 
-void NewGameTab::setupUi() {
+void NewGameDialog::setupUi() {
   nameLabel = new QLabel(this);
   typeLabel = new QLabel(this);
   folderLabel = new QLabel(this);
@@ -63,15 +56,19 @@ void NewGameTab::setupUi() {
   typeComboBox = new QComboBox(this);
   folderInput = new QLineEdit(this);
 
-  addGameButton = new QPushButton(this);
-  addGameButton->setObjectName("addGameButton");
+  auto buttonBox = new QDialogButtonBox(
+      QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
+  buttonBox->setObjectName("dialogButtons");
 
+  auto dialogLayout = new QVBoxLayout(this);
   auto formLayout = new QFormLayout(this);
 
   formLayout->addRow(nameLabel, nameInput);
   formLayout->addRow(typeLabel, typeComboBox);
   formLayout->addRow(folderLabel, folderInput);
-  formLayout->addWidget(addGameButton);
+
+  dialogLayout->addLayout(formLayout);
+  dialogLayout->addWidget(buttonBox);
 
   translateUi();
 
@@ -83,7 +80,7 @@ void NewGameTab::setupUi() {
 
   QMetaObject::connectSlotsByName(this);
 }
-void NewGameTab::translateUi() {
+void NewGameDialog::translateUi() {
   setWindowTitle(translate("Add new game"));
 
   nameLabel->setText(translate("Name"));
@@ -92,11 +89,9 @@ void NewGameTab::translateUi() {
 
   nameInput->setToolTip(translate("A name is required."));
   folderInput->setToolTip(translate("A folder is required."));
-
-  addGameButton->setText(translate("Add new game"));
 }
 
-void NewGameTab::on_addGameButton_clicked(bool checked) {
+void NewGameDialog::on_dialogButtons_accepted() {
   if (nameInput->text().isEmpty()) {
     QToolTip::showText(
         nameInput->mapToGlobal(QPoint(0, 0)), nameInput->toolTip(), nameInput);
@@ -110,6 +105,18 @@ void NewGameTab::on_addGameButton_clicked(bool checked) {
     return;
   }
 
-  emit accepted();
+  auto lowercaseLootFolder = folderInput->text().toLower();
+  for (const auto& otherFolder : currentGameFolders) {
+    if (lowercaseLootFolder == otherFolder.toLower()) {
+      QToolTip::showText(folderInput->mapToGlobal(QPoint(0, 0)),
+                         translate("A game with this folder already exists."),
+                         folderInput);
+      return;
+    }
+  }
+
+  accept();
 }
+
+void NewGameDialog::on_dialogButtons_rejected() { reject(); }
 }
