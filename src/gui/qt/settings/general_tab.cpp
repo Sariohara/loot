@@ -32,7 +32,7 @@
 #include "gui/qt/helpers.h"
 
 namespace loot {
-GeneralTab::GeneralTab(QWidget* parent) : QWidget(parent, Qt::Dialog) {
+GeneralTab::GeneralTab(QWidget* parent) : QFrame(parent, Qt::Dialog) {
   setupUi();
 }
 

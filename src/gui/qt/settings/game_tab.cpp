@@ -46,7 +46,7 @@ const std::map<std::string, GameType> GameTab::GAME_TYPES_BY_FOLDER({
 GameTab::GameTab(const GameSettings& settings,
                  QWidget* parent,
                  bool isCurrentGame) :
-    QWidget(parent, Qt::Dialog) {
+    QFrame(parent, Qt::Dialog) {
   setupUi();
 
   initialiseInputs(settings, isCurrentGame);

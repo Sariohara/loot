@@ -29,6 +29,7 @@
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDoubleSpinBox>
+#include <QtWidgets/QFrame>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QPlainTextEdit>
@@ -38,7 +39,7 @@
 #include "gui/state/game/game_settings.h"
 
 namespace loot {
-class GameTab : public QWidget {
+class GameTab : public QFrame {
   Q_OBJECT
 public:
   GameTab(const GameSettings &settings, QWidget *parent, bool isCurrentGame);

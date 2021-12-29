@@ -28,6 +28,7 @@
 
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QFrame>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QWidget>
@@ -35,7 +36,7 @@
 #include "gui/state/loot_settings.h"
 
 namespace loot {
-class GeneralTab : public QWidget {
+class GeneralTab : public QFrame {
   Q_OBJECT
 public:
   GeneralTab(QWidget *parent = nullptr);
