@@ -65,7 +65,7 @@ std::optional<QString> loadStyleSheet(
   }
 
   auto filesystemPath =
-      (resourcesPath / "ui" / "themes" / (themeName + ".theme.qss"));
+      (resourcesPath / "themes" / (themeName + ".theme.qss"));
   auto styleSheet =
       loadStyleSheet(QString::fromUtf8(filesystemPath.u8string()));
   if (styleSheet.has_value()) {
@@ -206,7 +206,7 @@ std::optional<QPalette> loadPalette(const std::filesystem::path& resourcesPath,
   }
 
   auto filesystemPath =
-      (resourcesPath / "ui" / "themes" / (themeName + ".palette.toml"));
+      (resourcesPath / "themes" / (themeName + ".palette.toml"));
   auto palette = loadPalette(QString::fromUtf8(filesystemPath.u8string()));
   if (palette.has_value()) {
     return palette.value();
@@ -236,7 +236,7 @@ std::vector<std::string> findThemes(
     const std::filesystem::path& resourcesPath) {
   std::set<std::string> themes({"default", "dark"});
 
-  auto themesPath = resourcesPath / "ui" / "themes";
+  auto themesPath = resourcesPath / "themes";
   if (!std::filesystem::exists(themesPath)) {
     return {themes.begin(), themes.end()};
   }
