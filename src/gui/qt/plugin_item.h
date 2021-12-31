@@ -26,8 +26,6 @@
 #ifndef LOOT_GUI_QT_PLUGIN_ITEM
 #define LOOT_GUI_QT_PLUGIN_ITEM
 
-#include <QtCore/QAbstractListModel>
-
 #include "gui/query/derived_plugin_metadata.h"
 
 namespace loot {

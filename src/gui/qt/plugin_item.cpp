@@ -25,7 +25,6 @@
 
 #include "gui/qt/plugin_item.h"
 
-#include <QtCore/QSize>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <variant>
