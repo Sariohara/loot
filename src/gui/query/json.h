@@ -49,15 +49,6 @@ void to_json(nlohmann::json& json, const MessageType& type) {
   }
 }
 
-void to_json(nlohmann::json& json, const SimpleMessage& message) {
-  json = {
-      {"type", message.type},
-      {"text", message.text},
-      {"language", message.language},
-      {"condition", message.condition},
-  };
-}
-
 void to_json(nlohmann::json& json, const Tag& tag) {
   json = {
       {"name", tag.GetName()},
@@ -71,6 +62,12 @@ void to_json(nlohmann::json& json, const MessageContent& content) {
       {"text", content.GetText()},
       {"language", content.GetLanguage()},
   };
+}
+
+void to_json(nlohmann::json& json, const Message& message) {
+  json = {{"type", message.GetType()},
+          {"content", message.GetContent()},
+          {"condition", message.GetCondition()}};
 }
 
 void to_json(nlohmann::json& json, const PluginCleaningData& data) {
@@ -99,23 +96,20 @@ void to_json(nlohmann::json& json, const Location& location) {
   };
 }
 
-nlohmann::json to_json_with_language(const PluginMetadata& metadata,
-                                     const std::string& language) {
-  nlohmann::json json = {{"name", metadata.GetName()},
-                         {"after", metadata.GetLoadAfterFiles()},
-                         {"req", metadata.GetRequirements()},
-                         {"inc", metadata.GetIncompatibilities()},
-                         {"msg", metadata.GetSimpleMessages(language)},
-                         {"tag", metadata.GetTags()},
-                         {"dirty", metadata.GetDirtyInfo()},
-                         {"clean", metadata.GetCleanInfo()},
-                         {"url", metadata.GetLocations()}};
+void to_json(nlohmann::json& json, const PluginMetadata& metadata) {
+  json = {{"name", metadata.GetName()},
+          {"after", metadata.GetLoadAfterFiles()},
+          {"req", metadata.GetRequirements()},
+          {"inc", metadata.GetIncompatibilities()},
+          {"msg", metadata.GetMessages()},
+          {"tag", metadata.GetTags()},
+          {"dirty", metadata.GetDirtyInfo()},
+          {"clean", metadata.GetCleanInfo()},
+          {"url", metadata.GetLocations()}};
 
   if (metadata.GetGroup().has_value()) {
     json["group"] = metadata.GetGroup().value();
   }
-
-  return json;
 }
 }
 
