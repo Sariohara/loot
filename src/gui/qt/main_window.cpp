@@ -1184,7 +1184,7 @@ void MainWindow::handleQueryException(const std::unique_ptr<Query> query,
 void MainWindow::handleGameDataLoaded(nlohmann::json result) {
   progressDialog->reset();
 
-  pluginItemModel->setPluginItems(getPluginItems(result.at("plugins"), state));
+  pluginItemModel->setPluginItems(getPluginItems(result, state));
 
   updateGeneralInformation();
 
@@ -1199,9 +1199,7 @@ void MainWindow::handleGameDataLoaded(nlohmann::json result) {
 void MainWindow::handlePluginsSorted(nlohmann::json result) {
   filtersWidget->resetConflictsAndGroupsFilters();
 
-  auto sortedPlugins = result.at("plugins");
-
-  if (sortedPlugins.empty()) {
+  if (result.empty()) {
     // If there was a sorting failure the array of plugins will be empty.
     // If sorting fails because of a cyclic interaction or a nonexistent
     // group, the last general message will detail that error.
@@ -1217,8 +1215,7 @@ void MainWindow::handlePluginsSorted(nlohmann::json result) {
   }
 
   auto currentLoadOrder = state.GetCurrentGame().GetLoadOrder();
-  auto loadOrderHasChanged =
-      hasLoadOrderChanged(currentLoadOrder, sortedPlugins);
+  auto loadOrderHasChanged = hasLoadOrderChanged(currentLoadOrder, result);
 
   if (loadOrderHasChanged) {
     enterSortingState();
@@ -1382,7 +1379,7 @@ void MainWindow::on_actionClearAllUserMetadata_triggered(bool checked) {
     updateGeneralMessages();
 
     // These plugin items are only those that had their user metadata removed.
-    auto pluginItems = getPluginItems(result.at("plugins"), state);
+    auto pluginItems = getPluginItems(result, state);
 
     // For each item, find its existing index in the model and update its data.
     // The sidebar item and card will be updated by handling the resulting
@@ -1670,7 +1667,7 @@ void MainWindow::on_actionDiscardSort_triggered(bool checked) {
 
     std::vector<PluginItem> newPluginItems;
     newPluginItems.reserve(pluginItems.size());
-    for (const auto& plugin : result.at("plugins")) {
+    for (const auto& plugin : result) {
       auto pluginName = plugin.at("name").get<std::string>();
 
       auto it = std::find_if(pluginItems.cbegin(),
@@ -2021,7 +2018,8 @@ void MainWindow::handleMasterlistUpdated(nlohmann::json result) {
 
     handleGameDataLoaded(result);
 
-    auto masterlistInfo = result.at("masterlist").get<FileRevisionSummary>();
+    auto masterlistInfo = GetFileRevisionToDisplay(
+        state.GetCurrentGame().MasterlistPath(), FileType::Masterlist);
     auto infoText = (boost::format(boost::locale::translate(
                          "Masterlist updated to revision %s.")) %
                      masterlistInfo.id)
@@ -2037,23 +2035,21 @@ void MainWindow::handleConflictsChecked(nlohmann::json result) {
   try {
     progressDialog->reset();
 
-    // The result has generalMessages and plugins properties, but the
-    // plugins property is not an array of DerivedPluginMetadata objects.
+    // The result is not an array of DerivedPluginMetadata objects.
     // Instead it's an array of objects, with each having a metadata property
     // that is a DerivedPluginMetadata object, and a conflicts property that is
     // a boolean.
-    nlohmann::json gameDataLoadedResult = {
-        {"plugins", nlohmann::json::array()}};
+    nlohmann::json gameDataLoadedResult = nlohmann::json::array();
     std::vector<std::string> conflictingPluginNames;
 
-    for (const auto& plugin : result.at("plugins")) {
+    for (const auto& plugin : result) {
       auto conflicts = plugin.at("conflicts").get<bool>();
       if (conflicts) {
         auto name = plugin.at("metadata").at("name").get<std::string>();
         conflictingPluginNames.push_back(name);
       }
 
-      gameDataLoadedResult["plugins"].push_back(plugin.at("metadata"));
+      gameDataLoadedResult.push_back(plugin.at("metadata"));
     }
 
     handleGameDataLoaded(gameDataLoadedResult);
