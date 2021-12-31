@@ -30,7 +30,7 @@
 #include <QtWidgets/QGraphicsItem>
 #include <QtWidgets/QGraphicsSimpleTextItem>
 
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 
 namespace loot {
 class Edge;

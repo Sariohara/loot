@@ -26,19 +26,10 @@
 #ifndef LOOT_GUI_QT_HELPERS
 #define LOOT_GUI_QT_HELPERS
 
-#include <loot/enum/message_type.h>
-#include <loot/struct/simple_message.h>
-
 #include <QtCore/QString>
-#include <QtWidgets/QLabel>
-#include <QtWidgets/QStyleOptionViewItem>
 
 namespace loot {
 QString translate(const char* text);
-
-std::string crcToString(uint32_t crc);
-
-std::string messagesAsMarkdown(const std::vector<SimpleMessage>& messages);
 }
 
 #endif

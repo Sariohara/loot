@@ -25,41 +25,10 @@
 
 #include "gui/qt/helpers.h"
 
-#include <QtCore/QString>
-#include <QtWidgets/QLayout>
-#include <boost/format.hpp>
 #include <boost/locale.hpp>
 
 namespace loot {
 QString translate(const char* text) {
   return QString::fromUtf8(boost::locale::translate(text).str());
-}
-
-std::string crcToString(uint32_t crc) {
-  return (boost::format("%08X") % crc).str();
-}
-
-std::string messagesAsMarkdown(const std::vector<SimpleMessage>& messages) {
-  if (messages.empty()) {
-    return "";
-  }
-
-  std::string content = "## Messages\n\n";
-
-  for (const auto& message : messages) {
-    content += "- ";
-
-    if (message.type == MessageType::warn) {
-      content += "Warning: ";
-    } else if (message.type == MessageType::error) {
-      content += "Error: ";
-    } else {
-      content += "Note: ";
-    }
-
-    content += message.text + "\n";
-  }
-
-  return content;
 }
 }

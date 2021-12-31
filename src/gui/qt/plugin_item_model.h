@@ -28,11 +28,13 @@
 
 #include <QtCore/QAbstractListModel>
 
+#include "gui/plugin_item.h"
 #include "gui/qt/counters.h"
 #include "gui/qt/filters_states.h"
 #include "gui/qt/general_info.h"
-#include "gui/qt/plugin_item.h"
 #include "gui/state/game/helpers.h"
+
+Q_DECLARE_METATYPE(loot::PluginItem);
 
 namespace loot {
 static constexpr int RawDataRole = Qt::UserRole + 1;

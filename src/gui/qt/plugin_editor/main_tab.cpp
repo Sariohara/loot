@@ -28,7 +28,7 @@
 #include <QtWidgets/QFormLayout>
 
 #include "gui/qt/helpers.h"
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 
 namespace loot {
 MainTab::MainTab(QWidget* parent) :

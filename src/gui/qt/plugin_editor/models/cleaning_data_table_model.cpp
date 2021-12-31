@@ -27,6 +27,7 @@
 
 #include <boost/format.hpp>
 
+#include "gui/helpers.h"
 #include "gui/qt/helpers.h"
 
 namespace loot {

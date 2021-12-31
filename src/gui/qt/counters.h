@@ -29,7 +29,7 @@
 #include <loot/struct/simple_message.h>
 
 #include "gui/qt/filters_states.h"
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 
 namespace loot {
 struct GeneralInformationCounters {

@@ -23,8 +23,8 @@
     <https://www.gnu.org/licenses/>.
     */
 
-#ifndef LOOT_GUI_QT_PLUGIN_ITEM
-#define LOOT_GUI_QT_PLUGIN_ITEM
+#ifndef LOOT_GUI_PLUGIN_ITEM
+#define LOOT_GUI_PLUGIN_ITEM
 
 #include "gui/query/derived_plugin_metadata.h"
 

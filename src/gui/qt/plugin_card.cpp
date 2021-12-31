@@ -31,6 +31,7 @@
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QVBoxLayout>
 
+#include "gui/helpers.h"
 #include "gui/qt/counters.h"
 #include "gui/qt/helpers.h"
 #include "gui/qt/icons.h"

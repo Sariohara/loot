@@ -25,7 +25,7 @@
 
 #include "gui/qt/plugin_item_filter_model.h"
 
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 #include "gui/qt/plugin_item_model.h"
 
 namespace loot {

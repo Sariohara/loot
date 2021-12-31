@@ -23,15 +23,13 @@
     <https://www.gnu.org/licenses/>.
     */
 
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <variant>
 
-#include "gui/qt/helpers.h"
-
-Q_DECLARE_METATYPE(loot::PluginItem);
+#include "gui/helpers.h"
 
 namespace loot {
 std::string getCommaSeparatedTags(const std::vector<std::string>& tags) {

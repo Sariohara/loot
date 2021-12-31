@@ -37,7 +37,7 @@
 
 #include "gui/qt/filters_states.h"
 #include "gui/qt/general_info_frame.h"
-#include "gui/qt/plugin_item.h"
+#include "gui/plugin_item.h"
 
 namespace loot {
 class PluginCard : public QFrame {
