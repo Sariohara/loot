@@ -30,8 +30,6 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QWidget>
 
-#include "gui/query/derived_plugin_metadata.h"
-
 namespace loot {
 class MainTab : public QWidget {
   Q_OBJECT

@@ -34,7 +34,6 @@ along with LOOT.  If not, see
 #include <json.hpp>
 
 #include "gui/helpers.h"
-#include "gui/query/derived_plugin_metadata.h"
 #include "gui/state/game/helpers.h"
 #include "gui/state/loot_settings.h"
 
