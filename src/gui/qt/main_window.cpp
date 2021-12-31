@@ -41,7 +41,6 @@
 #include "gui/qt/plugin_item_filter_model.h"
 #include "gui/qt/sidebar_plugin_name_delegate.h"
 #include "gui/qt/style.h"
-#include "gui/query/json.h"
 #include "gui/query/types/apply_sort_query.h"
 #include "gui/query/types/cancel_sort_query.h"
 #include "gui/query/types/change_game_query.h"
@@ -95,28 +94,11 @@ bool hasLoadOrderChanged(
   return false;
 }
 
-void setUserMetadata(DerivedPluginMetadata& plugin, const LootState& state) {
-  // This is necessary because converting from nlohmann::json loses the
-  // masterlist and userlist metadata values.
-  auto userMetadata = state.GetCurrentGame().GetUserMetadata(plugin.GetName());
-  if (userMetadata.has_value()) {
-    plugin.setUserMetadata(userMetadata.value());
-  }
-}
-
 std::vector<PluginItem> getPluginItems(
-    const nlohmann::json& derivedPluginMetadata,
-    const LootState& state) {
-  auto plugins =
-      derivedPluginMetadata.get<std::vector<DerivedPluginMetadata>>();
-
+    const std::vector<DerivedPluginMetadata>& plugins) {
   std::vector<PluginItem> pluginItems;
   pluginItems.reserve(plugins.size());
   for (auto& plugin : plugins) {
-    // This is necessary because converting from nlohmann::json loses the
-    // masterlist and userlist metadata values.
-    setUserMetadata(plugin, state);
-
     pluginItems.push_back(PluginItem(plugin));
   }
 
@@ -803,7 +785,7 @@ bool MainWindow::hasErrorMessages() const {
 
 void MainWindow::sortPlugins(bool isAutoSort) {
   std::vector<
-      std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+      std::pair<std::unique_ptr<Query>, void (MainWindow::*)(QueryResult)>>
       queriesAndHandlers;
 
   if (state.updateMasterlist()) {
@@ -981,7 +963,7 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 
 void MainWindow::executeBackgroundQuery(
     std::unique_ptr<Query> query,
-    void (MainWindow::*onComplete)(nlohmann::json),
+    void (MainWindow::*onComplete)(QueryResult),
     ProgressUpdater* progressUpdater) {
   auto workerThread = new QueryWorkerThread(this, std::move(query));
 
@@ -1010,7 +992,7 @@ void MainWindow::executeBackgroundQuery(
 
 void MainWindow::executeBackgroundQueryChain(
     std::vector<
-        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(QueryResult)>>
         queriesAndHandlers,
     ProgressUpdater* progressUpdater) {
   // Run each query in the vector sequentially, handling completion using each
@@ -1181,10 +1163,11 @@ void MainWindow::handleQueryException(const std::unique_ptr<Query> query,
   }
 }
 
-void MainWindow::handleGameDataLoaded(nlohmann::json result) {
+void MainWindow::handleGameDataLoaded(QueryResult result) {
   progressDialog->reset();
 
-  pluginItemModel->setPluginItems(getPluginItems(result, state));
+  pluginItemModel->setPluginItems(
+      getPluginItems(std::get<DerivedMetadataVector>(result)));
 
   updateGeneralInformation();
 
@@ -1196,10 +1179,12 @@ void MainWindow::handleGameDataLoaded(nlohmann::json result) {
   enableGameActions();
 }
 
-void MainWindow::handlePluginsSorted(nlohmann::json result) {
+void MainWindow::handlePluginsSorted(QueryResult result) {
   filtersWidget->resetConflictsAndGroupsFilters();
 
-  if (result.empty()) {
+  auto sortedPlugins = std::get<DerivedMetadataVector>(result);
+
+  if (sortedPlugins.empty()) {
     // If there was a sorting failure the array of plugins will be empty.
     // If sorting fails because of a cyclic interaction or a nonexistent
     // group, the last general message will detail that error.
@@ -1215,7 +1200,8 @@ void MainWindow::handlePluginsSorted(nlohmann::json result) {
   }
 
   auto currentLoadOrder = state.GetCurrentGame().GetLoadOrder();
-  auto loadOrderHasChanged = hasLoadOrderChanged(currentLoadOrder, result);
+  auto loadOrderHasChanged =
+      hasLoadOrderChanged(currentLoadOrder, sortedPlugins);
 
   if (loadOrderHasChanged) {
     enterSortingState();
@@ -1225,7 +1211,7 @@ void MainWindow::handlePluginsSorted(nlohmann::json result) {
     showNotification(translate("Sorting made no changes to the load order."));
   }
 
-  handleGameDataLoaded(result);
+  handleGameDataLoaded(sortedPlugins);
 }
 
 void MainWindow::on_actionSettings_triggered(bool checked) {
@@ -1379,7 +1365,7 @@ void MainWindow::on_actionClearAllUserMetadata_triggered(bool checked) {
     updateGeneralMessages();
 
     // These plugin items are only those that had their user metadata removed.
-    auto pluginItems = getPluginItems(result, state);
+    auto pluginItems = getPluginItems(std::get<DerivedMetadataVector>(result));
 
     // For each item, find its existing index in the model and update its data.
     // The sidebar item and card will be updated by handling the resulting
@@ -1507,8 +1493,7 @@ void MainWindow::on_actionClearMetadata_triggered(bool checked) {
     // The result is the changed plugin's derived metadata. Update the
     // model's data and also the message counts.
 
-    auto plugin = result.get<DerivedPluginMetadata>();
-    setUserMetadata(plugin, state);
+    auto plugin = std::get<DerivedPluginMetadata>(result);
     auto newPluginItem = PluginItem(plugin);
 
     for (int i = 1; i < pluginItemModel->rowCount(); i += 1) {
@@ -1667,8 +1652,8 @@ void MainWindow::on_actionDiscardSort_triggered(bool checked) {
 
     std::vector<PluginItem> newPluginItems;
     newPluginItems.reserve(pluginItems.size());
-    for (const auto& plugin : result) {
-      auto pluginName = plugin.at("name").get<std::string>();
+    for (const auto& pluginPair : std::get<CancelSortResult>(result)) {
+      auto pluginName = pluginPair.first;
 
       auto it = std::find_if(pluginItems.cbegin(),
                              pluginItems.cend(),
@@ -1677,13 +1662,8 @@ void MainWindow::on_actionDiscardSort_triggered(bool checked) {
                              });
 
       if (it != pluginItems.end()) {
-        auto newLoadOrderIndex =
-            plugin.contains("loadOrderIndex")
-                ? std::make_optional(plugin.at("loadOrderIndex").get<short>())
-                : std::nullopt;
-
         auto newPluginItem = *it;
-        newPluginItem.loadOrderIndex = newLoadOrderIndex;
+        newPluginItem.loadOrderIndex = pluginPair.second;
         newPluginItems.push_back(newPluginItem);
       }
     }
@@ -1711,7 +1691,7 @@ void MainWindow::on_actionUpdateMasterlist_triggered(bool checked) {
         state.getPreludeRepositoryBranch());
 
     std::vector<
-        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(QueryResult)>>
         queriesAndHandlers;
     queriesAndHandlers.push_back(std::move(std::make_pair(
         std::move(updatePrelude), &MainWindow::handlePreludeUpdated)));
@@ -1928,7 +1908,7 @@ void MainWindow::on_searchDialog_currentResultChanged(size_t resultIndex) {
   pluginCardsView->scrollTo(proxyIndex, QAbstractItemView::PositionAtTop);
 }
 
-void MainWindow::handleGameChanged(nlohmann::json result) {
+void MainWindow::handleGameChanged(QueryResult result) {
   try {
     filtersWidget->resetConflictsAndGroupsFilters();
     disablePluginActions();
@@ -1941,7 +1921,7 @@ void MainWindow::handleGameChanged(nlohmann::json result) {
   }
 }
 
-void MainWindow::handleRefreshGameDataLoaded(nlohmann::json result) {
+void MainWindow::handleRefreshGameDataLoaded(QueryResult result) {
   try {
     handleGameDataLoaded(result);
   } catch (std::exception& e) {
@@ -1949,7 +1929,7 @@ void MainWindow::handleRefreshGameDataLoaded(nlohmann::json result) {
   }
 }
 
-void MainWindow::handleStartupGameDataLoaded(nlohmann::json result) {
+void MainWindow::handleStartupGameDataLoaded(QueryResult result) {
   try {
     handleGameDataLoaded(result);
 
@@ -1973,7 +1953,7 @@ void MainWindow::handleStartupGameDataLoaded(nlohmann::json result) {
   }
 }
 
-void MainWindow::handlePluginsManualSorted(nlohmann::json result) {
+void MainWindow::handlePluginsManualSorted(QueryResult result) {
   try {
     handlePluginsSorted(result);
   } catch (std::exception& e) {
@@ -1981,7 +1961,7 @@ void MainWindow::handlePluginsManualSorted(nlohmann::json result) {
   }
 }
 
-void MainWindow::handlePluginsAutoSorted(nlohmann::json result) {
+void MainWindow::handlePluginsAutoSorted(QueryResult result) {
   try {
     handlePluginsSorted(result);
 
@@ -1997,10 +1977,10 @@ void MainWindow::handlePluginsAutoSorted(nlohmann::json result) {
   }
 }
 
-void MainWindow::handlePreludeUpdated(nlohmann::json result) {
+void MainWindow::handlePreludeUpdated(QueryResult result) {
   try {
-    if (!result.is_null()) {
-      auto preludeInfo = result.get<FileRevisionSummary>();
+    if (std::holds_alternative<FileRevisionSummary>(result)) {
+      auto preludeInfo = std::get<FileRevisionSummary>(result);
 
       pluginItemModel->setPreludeRevision(preludeInfo);
     }
@@ -2009,9 +1989,9 @@ void MainWindow::handlePreludeUpdated(nlohmann::json result) {
   }
 }
 
-void MainWindow::handleMasterlistUpdated(nlohmann::json result) {
+void MainWindow::handleMasterlistUpdated(QueryResult result) {
   try {
-    if (result.is_null()) {
+    if (!std::holds_alternative<DerivedMetadataVector>(result)) {
       showNotification(translate("No masterlist update was necessary."));
       return;
     }
@@ -2031,7 +2011,7 @@ void MainWindow::handleMasterlistUpdated(nlohmann::json result) {
   }
 }
 
-void MainWindow::handleConflictsChecked(nlohmann::json result) {
+void MainWindow::handleConflictsChecked(QueryResult result) {
   try {
     progressDialog->reset();
 
@@ -2039,17 +2019,17 @@ void MainWindow::handleConflictsChecked(nlohmann::json result) {
     // Instead it's an array of objects, with each having a metadata property
     // that is a DerivedPluginMetadata object, and a conflicts property that is
     // a boolean.
-    nlohmann::json gameDataLoadedResult = nlohmann::json::array();
+    std::vector<DerivedPluginMetadata> gameDataLoadedResult;
     std::vector<std::string> conflictingPluginNames;
 
-    for (const auto& plugin : result) {
-      auto conflicts = plugin.at("conflicts").get<bool>();
-      if (conflicts) {
-        auto name = plugin.at("metadata").at("name").get<std::string>();
+    for (const auto& pluginPair :
+         std::get<GetConflictingPluginsResult>(result)) {
+      if (pluginPair.second) {
+        auto name = pluginPair.first.GetName();
         conflictingPluginNames.push_back(name);
       }
 
-      gameDataLoadedResult.push_back(plugin.at("metadata"));
+      gameDataLoadedResult.push_back(pluginPair.first);
     }
 
     handleGameDataLoaded(gameDataLoadedResult);
@@ -2219,12 +2199,11 @@ void MainWindow::handleUpdateCheckSSLError(const QList<QSslError>& errors) {
 ResultDemultiplexer::ResultDemultiplexer(MainWindow* target) :
     QObject(), signalCounter(0), target(target) {}
 
-void ResultDemultiplexer::addHandler(
-    void (MainWindow::*handler)(nlohmann::json)) {
+void ResultDemultiplexer::addHandler(void (MainWindow::*handler)(QueryResult)) {
   handlers.push_back(handler);
 }
 
-void ResultDemultiplexer::onResultReady(nlohmann::json result) {
+void ResultDemultiplexer::onResultReady(QueryResult result) {
   if (signalCounter > handlers.size() - 1) {
     throw std::runtime_error("Received more signals than expected");
   }

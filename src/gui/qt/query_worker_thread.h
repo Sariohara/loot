@@ -75,7 +75,7 @@ public:
   }
 
 signals:
-  void resultReady(nlohmann::json result);
+  void resultReady(QueryResult result);
   void error(const std::string &exception);
 
 private:
