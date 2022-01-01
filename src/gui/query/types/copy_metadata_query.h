@@ -27,7 +27,6 @@ along with LOOT.  If not, see
 #define LOOT_GUI_QUERY_COPY_METADATA_QUERY
 
 #include "gui/helpers.h"
-#include "gui/query/json.h"
 #include "gui/query/query.h"
 
 namespace loot {
@@ -62,7 +61,7 @@ public:
 
     // Generate text representation.
     std::string text =
-        "[spoiler][code]" + asText(metadata) + "[/code][/spoiler]";
+        "[spoiler][code]" + metadata.AsYaml() + "[/code][/spoiler]";
 
     CopyToClipboard(text);
 
@@ -75,12 +74,6 @@ public:
   }
 
 private:
-  std::string asText(const PluginMetadata& metadata) {
-    nlohmann::json json = metadata;
-
-    return json.dump(4);
-  }
-
   const G& game_;
   const std::string language_;
   const std::string pluginName_;
