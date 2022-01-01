@@ -59,34 +59,6 @@
 #include "gui/version.h"
 
 namespace loot {
-class ChainedQuery : public Query {
-public:
-  ChainedQuery(std::vector<std::unique_ptr<Query>>& queries) :
-      queries(std::move(queries)), currentQuery(0) {}
-
-  nlohmann::json executeLogic() {
-    auto results = nlohmann::json::array();
-    for (auto&& query : queries) {
-      auto result = query->executeLogic();
-      results.push_back(result);
-      currentQuery += 1;
-    }
-    return results;
-  }
-
-  std::string getErrorMessage() const {
-    if (currentQuery < queries.size()) {
-      queries[currentQuery]->getErrorMessage();
-    }
-
-    return Query::getErrorMessage();
-  }
-
-private:
-  std::vector<std::unique_ptr<Query>> queries;
-  size_t currentQuery;
-};
-
 std::vector<std::string> GetGroupNames(
     const std::vector<Group>& masterlistGroups,
     const std::vector<Group>& userGroups) {
@@ -830,7 +802,9 @@ bool MainWindow::hasErrorMessages() const {
 }
 
 void MainWindow::sortPlugins(bool isAutoSort) {
-  std::vector<std::unique_ptr<Query>> queries;
+  std::vector<
+      std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+      queriesAndHandlers;
 
   if (state.updateMasterlist()) {
     handleProgressUpdate(translate("Updating and parsing masterlist..."));
@@ -844,8 +818,11 @@ void MainWindow::sortPlugins(bool isAutoSort) {
         std::make_unique<UpdateMasterlistQuery<>>(state.GetCurrentGame(),
                                                   state.getLanguage());
 
-    queries.push_back(std::move(updatePrelude));
-    queries.push_back(std::move(updateMasterlistQuery));
+    queriesAndHandlers.push_back(std::move(std::make_pair(
+        std::move(updatePrelude), &MainWindow::handlePreludeUpdated)));
+    queriesAndHandlers.push_back(
+        std::move(std::make_pair(std::move(updateMasterlistQuery),
+                                 &MainWindow::handleMasterlistUpdated)));
   }
 
   auto progressUpdater = new ProgressUpdater();
@@ -861,15 +838,13 @@ void MainWindow::sortPlugins(bool isAutoSort) {
                                            state.getLanguage(),
                                            sendProgressUpdate);
 
-  queries.push_back(std::move(sortPluginsQuery));
+  auto sortHandler = isAutoSort ? &MainWindow::handlePluginsAutoSorted
+                                : &MainWindow::handlePluginsManualSorted;
 
-  std::unique_ptr<Query> chainedQueries =
-      std::make_unique<ChainedQuery>(queries);
+  queriesAndHandlers.push_back(
+      std::move(std::make_pair(std::move(sortPluginsQuery), sortHandler)));
 
-  auto handler = isAutoSort ? &MainWindow::handlePluginsAutoSorted
-                            : &MainWindow::handlePluginsSorted;
-
-  executeBackgroundQuery(std::move(chainedQueries), handler, progressUpdater);
+  executeBackgroundQueryChain(std::move(queriesAndHandlers), progressUpdater);
 }
 
 void MainWindow::showFirstRunDialog() {
@@ -1033,6 +1008,66 @@ void MainWindow::executeBackgroundQuery(
   workerThread->start();
 }
 
+void MainWindow::executeBackgroundQueryChain(
+    std::vector<
+        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+        queriesAndHandlers,
+    ProgressUpdater* progressUpdater) {
+  // Run each query in the vector sequentially, handling completion using each
+  // query's corresponding handler. If a query fails, all earlier query handlers
+  // should have run and the failed query's handler and later handlers should
+  // not run.
+  // In order to ensure that the correct handler runs for each query, use a
+  // demultiplexing handler that counts how many signals it's received.
+
+  std::vector<std::unique_ptr<Query>> queries;
+  auto resultDemultiplexer = new ResultDemultiplexer(this);
+
+  for (auto&& [query, handler] : queriesAndHandlers) {
+    queries.push_back(std::move(query));
+    resultDemultiplexer->addHandler(handler);
+  }
+
+  auto workerThread = new QueryWorkerThread(this, std::move(queries));
+
+  if (progressUpdater != nullptr) {
+    connect(progressUpdater,
+            &ProgressUpdater::progressUpdate,
+            this,
+            &MainWindow::handleProgressUpdate);
+
+    connect(workerThread,
+            &QueryWorkerThread::finished,
+            progressUpdater,
+            &QObject::deleteLater);
+  }
+
+  connect(workerThread,
+          &QueryWorkerThread::resultReady,
+          resultDemultiplexer,
+          &ResultDemultiplexer::onResultReady);
+  connect(
+      workerThread, &QueryWorkerThread::error, this, &MainWindow::handleError);
+  connect(workerThread,
+          &QueryWorkerThread::finished,
+          workerThread,
+          &QObject::deleteLater);
+  connect(workerThread,
+          &QueryWorkerThread::finished,
+          resultDemultiplexer,
+          &QObject::deleteLater);
+
+  // Reset (i.e. close) the progress dialog once the thread has finished in case
+  // it was used while running these queries. This can't be done from any one
+  // handler because none of them know if they are the last to run.
+  connect(workerThread,
+          &QueryWorkerThread::finished,
+          this,
+          &MainWindow::handleWorkerThreadFinished);
+
+  workerThread->start();
+}
+
 void MainWindow::sendHttpRequest(const std::string& url,
                                  void (MainWindow::*onFinished)()) {
   QNetworkRequest request(QUrl(QString::fromUtf8(url)));
@@ -1161,36 +1196,10 @@ void MainWindow::handleGameDataLoaded(nlohmann::json result) {
   enableGameActions();
 }
 
-void MainWindow::handleMasterlistUpdated(nlohmann::json results) {
-  if (!results.at(0).is_null() && results.at(1).is_null()) {
-    auto preludeInfo = results.at(0).get<FileRevisionSummary>();
-
-    pluginItemModel->setPreludeRevision(preludeInfo);
-  }
-
-  if (!results.at(1).is_null()) {
-    handleGameDataLoaded(results.at(1));
-
-    auto masterlistInfo =
-        results.at(1).at("masterlist").get<FileRevisionSummary>();
-    auto infoText = (boost::format(boost::locale::translate(
-                         "Masterlist updated to revision %s.")) %
-                     masterlistInfo.id)
-                        .str();
-
-    showNotification(QString::fromUtf8(infoText));
-  } else {
-    progressDialog->reset();
-
-    showNotification(translate("No masterlist update was necessary."));
-  }
-}
-
-void MainWindow::handlePluginsSorted(nlohmann::json results) {
+void MainWindow::handlePluginsSorted(nlohmann::json result) {
   filtersWidget->resetConflictsAndGroupsFilters();
 
-  auto sortingResult = results.back();
-  auto sortedPlugins = sortingResult.at("plugins");
+  auto sortedPlugins = result.at("plugins");
 
   if (sortedPlugins.empty()) {
     // If there was a sorting failure the array of plugins will be empty.
@@ -1202,14 +1211,8 @@ void MainWindow::handlePluginsSorted(nlohmann::json results) {
         translate("Failed to sort plugins. Details may be provided in the "
                   "General Information section."));
 
-    if (results.size() == 3 && !results.at(1).is_null()) {
-      // Masterlist update ran, so handle it.
-      handleMasterlistUpdated(results);
-    } else {
-      // Plugins didn't change but general messages may have.
-      updateGeneralMessages();
-      progressDialog->reset();
-    }
+    // Plugins didn't change but general messages may have.
+    updateGeneralMessages();
     return;
   }
 
@@ -1217,30 +1220,15 @@ void MainWindow::handlePluginsSorted(nlohmann::json results) {
   auto loadOrderHasChanged =
       hasLoadOrderChanged(currentLoadOrder, sortedPlugins);
 
-  if (!loadOrderHasChanged) {
+  if (loadOrderHasChanged) {
+    enterSortingState();
+  } else {
     state.DecrementUnappliedChangeCounter();
-    progressDialog->reset();
 
     showNotification(translate("Sorting made no changes to the load order."));
-  } else {
-    enterSortingState();
   }
 
-  // Refresh the game data in the UI even if the load order didn't
-  // change as the masterlist update and sorting process may have
-  // updated messages and other metadata.
-  if (results.size() == 3 && !results.at(1).is_null()) {
-    // Substitute in the plugins from the sorting result, then pass the data
-    // in to handleMmasterlistUpdated(). The general messages don't need to be
-    // subbed in because they're read from state.GetCurrentGame().
-    results.at(1).at("plugins") = results.at(2).at("plugins");
-    handleMasterlistUpdated(results);
-    return;
-  }
-
-  // Masterlist update didn't run, or didn't do anything.
-
-  handleGameDataLoaded(sortingResult);
+  handleGameDataLoaded(result);
 }
 
 void MainWindow::on_actionSettings_triggered(bool checked) {
@@ -1725,16 +1713,16 @@ void MainWindow::on_actionUpdateMasterlist_triggered(bool checked) {
         state.getPreludeRepositoryURL(),
         state.getPreludeRepositoryBranch());
 
-    std::vector<std::unique_ptr<Query>> queries;
-    queries.push_back(std::move(updatePrelude));
-    queries.push_back(std::move(updateMasterlistQuery));
+    std::vector<
+        std::pair<std::unique_ptr<Query>, void (MainWindow::*)(nlohmann::json)>>
+        queriesAndHandlers;
+    queriesAndHandlers.push_back(std::move(std::make_pair(
+        std::move(updatePrelude), &MainWindow::handlePreludeUpdated)));
+    queriesAndHandlers.push_back(
+        std::move(std::make_pair(std::move(updateMasterlistQuery),
+                                 &MainWindow::handleMasterlistUpdated)));
 
-    std::unique_ptr<Query> chainedQueries =
-        std::make_unique<ChainedQuery>(queries);
-
-    executeBackgroundQuery(std::move(chainedQueries),
-                           &MainWindow::handleMasterlistUpdated,
-                           nullptr);
+    executeBackgroundQueryChain(std::move(queriesAndHandlers), nullptr);
   } catch (std::exception& e) {
     handleException(e);
   }
@@ -1988,17 +1976,17 @@ void MainWindow::handleStartupGameDataLoaded(nlohmann::json result) {
   }
 }
 
-void MainWindow::handlePluginsManualSorted(nlohmann::json results) {
+void MainWindow::handlePluginsManualSorted(nlohmann::json result) {
   try {
-    handlePluginsSorted(results);
+    handlePluginsSorted(result);
   } catch (std::exception& e) {
     handleException(e);
   }
 }
 
-void MainWindow::handlePluginsAutoSorted(nlohmann::json results) {
+void MainWindow::handlePluginsAutoSorted(nlohmann::json result) {
   try {
-    handlePluginsSorted(results);
+    handlePluginsSorted(result);
 
     if (actionApplySort->isVisible()) {
       actionApplySort->trigger();
@@ -2012,9 +2000,34 @@ void MainWindow::handlePluginsAutoSorted(nlohmann::json results) {
   }
 }
 
-void MainWindow::handleMasterlistUpdatedSeparately(nlohmann::json results) {
+void MainWindow::handlePreludeUpdated(nlohmann::json result) {
   try {
-    handleMasterlistUpdated(results);
+    if (!result.is_null()) {
+      auto preludeInfo = result.get<FileRevisionSummary>();
+
+      pluginItemModel->setPreludeRevision(preludeInfo);
+    }
+  } catch (std::exception& e) {
+    handleException(e);
+  }
+}
+
+void MainWindow::handleMasterlistUpdated(nlohmann::json result) {
+  try {
+    if (result.is_null()) {
+      showNotification(translate("No masterlist update was necessary."));
+      return;
+    }
+
+    handleGameDataLoaded(result);
+
+    auto masterlistInfo = result.at("masterlist").get<FileRevisionSummary>();
+    auto infoText = (boost::format(boost::locale::translate(
+                         "Masterlist updated to revision %s.")) %
+                     masterlistInfo.id)
+                        .str();
+
+    showNotification(QString::fromUtf8(infoText));
   } catch (std::exception& e) {
     handleException(e);
   }
@@ -2056,6 +2069,8 @@ void MainWindow::handleProgressUpdate(const QString& message) {
   progressDialog->open();
   progressDialog->setLabel(new QLabel(message));
 }
+
+void MainWindow::handleWorkerThreadFinished() { progressDialog->reset(); }
 
 void MainWindow::handleGetLatestReleaseResponseFinished() {
   try {
@@ -2203,5 +2218,23 @@ void MainWindow::handleUpdateCheckSSLError(const QList<QSslError>& errors) {
   } catch (std::exception& e) {
     handleException(e);
   }
+}
+
+ResultDemultiplexer::ResultDemultiplexer(MainWindow* target) :
+    QObject(), signalCounter(0), target(target) {}
+
+void ResultDemultiplexer::addHandler(
+    void (MainWindow::*handler)(nlohmann::json)) {
+  handlers.push_back(handler);
+}
+
+void ResultDemultiplexer::onResultReady(nlohmann::json result) {
+  if (signalCounter > handlers.size() - 1) {
+    throw std::runtime_error("Received more signals than expected");
+  }
+
+  auto handler = handlers[signalCounter];
+  (target->*handler)(result);
+  signalCounter += 1;
 }
 }

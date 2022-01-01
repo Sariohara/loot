@@ -43,24 +43,34 @@ class QueryWorkerThread : public QThread {
   Q_OBJECT
 public:
   QueryWorkerThread(QObject *parent, std::unique_ptr<Query> query) :
-      QThread(parent), query(std::move(query)) {}
+      QThread(parent) {
+    queries.push_back(std::move(query));
+  }
+  QueryWorkerThread(QObject *parent,
+                    std::vector<std::unique_ptr<Query>> queries) :
+      QThread(parent), queries(std::move(queries)) {}
 
   void run() override {
-    try {
-      if (query == nullptr) {
-        throw std::runtime_error(
-            "Attempted to run a worker thread with no query set!");
-      }
+    for (auto &&query : queries) {
+      try {
+        if (query == nullptr) {
+          throw std::runtime_error(
+              "Attempted to run a worker thread with no query set!");
+        }
 
-      emit resultReady(query->executeLogic());
-    } catch (std::exception &e) {
-      auto logger = getLogger();
-      if (logger) {
-        logger->error("Exception while executing query in worker thread: {}",
-                      e.what());
-      }
+        emit resultReady(query->executeLogic());
+      } catch (std::exception &e) {
+        auto logger = getLogger();
+        if (logger) {
+          logger->error("Exception while executing query in worker thread: {}",
+                        e.what());
+        }
 
-      emit error(query->getErrorMessage());
+        emit error(query->getErrorMessage());
+
+        // Don't execute any further queries.
+        return;
+      }
     }
   }
 
@@ -69,7 +79,7 @@ signals:
   void error(const std::string &exception);
 
 private:
-  std::unique_ptr<Query> query;
+  std::vector<std::unique_ptr<Query>> queries;
 };
 }
 

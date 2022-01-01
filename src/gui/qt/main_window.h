@@ -166,6 +166,11 @@ private:
   void executeBackgroundQuery(std::unique_ptr<Query> query,
                               void (MainWindow::*onComplete)(nlohmann::json),
                               ProgressUpdater *progressUpdater);
+  void executeBackgroundQueryChain(
+      std::vector<std::pair<std::unique_ptr<Query>,
+                            void (MainWindow::*)(nlohmann::json)>>
+          queriesAndHandlers,
+      ProgressUpdater *progressUpdater);
 
   void sendHttpRequest(const std::string &url,
                        void (MainWindow::*onFinished)());
@@ -180,8 +185,7 @@ private:
                             const std::exception &exception);
 
   void handleGameDataLoaded(nlohmann::json result);
-  void handleMasterlistUpdated(nlohmann::json results);
-  void handlePluginsSorted(nlohmann::json results);
+  void handlePluginsSorted(nlohmann::json result);
 
 private slots:
   void on_actionSettings_triggered(bool checked);
@@ -242,16 +246,34 @@ private slots:
   void handleGameChanged(nlohmann::json result);
   void handleRefreshGameDataLoaded(nlohmann::json result);
   void handleStartupGameDataLoaded(nlohmann::json result);
-  void handlePluginsManualSorted(nlohmann::json results);
-  void handlePluginsAutoSorted(nlohmann::json results);
-  void handleMasterlistUpdatedSeparately(nlohmann::json results);
+  void handlePluginsManualSorted(nlohmann::json result);
+  void handlePluginsAutoSorted(nlohmann::json result);
+  void handlePreludeUpdated(nlohmann::json result);
+  void handleMasterlistUpdated(nlohmann::json result);
   void handleConflictsChecked(nlohmann::json result);
   void handleProgressUpdate(const QString &message);
+  void handleWorkerThreadFinished();
 
   void handleGetLatestReleaseResponseFinished();
   void handleGetTagCommitResponseFinished();
   void handleUpdateCheckNetworkError(QNetworkReply::NetworkError error);
   void handleUpdateCheckSSLError(const QList<QSslError> &errors);
+};
+
+class ResultDemultiplexer : public QObject {
+  Q_OBJECT
+public:
+  ResultDemultiplexer(MainWindow *target);
+
+  void addHandler(void (MainWindow::*handler)(nlohmann::json));
+
+public slots:
+  void onResultReady(nlohmann::json result);
+
+private:
+  MainWindow *target;
+  std::vector<void (MainWindow::*)(nlohmann::json)> handlers;
+  int signalCounter;
 };
 }
 
